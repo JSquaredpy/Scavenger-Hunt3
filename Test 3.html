@@ -36,11 +36,12 @@
     background-color: #00cc88;
     color: black;
   }
-canvas {
-    background: url('Images/background.jpg') no-repeat center center;
-    background-size: cover; /* or 'contain' for full visibility */
-}
-
+  canvas {
+    background: #2c6d1e; /* grass green */
+    border: 4px solid #004400;
+    image-rendering: pixelated;
+    margin-top: 20px;
+  }
 </style>
 </head>
 <body>
@@ -62,67 +63,16 @@ canvas {
   const voice = new Audio("audio/voice.mp3");
   const bgMusic = new Audio("audio/bgmusic.mp3");
   bgMusic.loop = true;
-  bgMusic.volume = 0.4;
+  bgMusic.volume = 1;
 
-  // Sprite settings
-  const SPRITE_SIZE = 64;
-  let posX = -SPRITE_SIZE;
-  let frame = 0;
-  let animState = 'walking';
+  // Static image instead of sprite animation
+  const spriteImage = new Image();
+  spriteImage.src = 'Images/girl-sprite.png'; // change to your image path
+  spriteImage.onerror = () => console.error('Failed to load image.');
 
-  const spriteSheet = new Image();
-  spriteSheet.src = 'Images/ girl-sprite.png'; // Update to your sprite path
-
-  spriteSheet.onerror = () => {
-    console.error('Failed to load sprite sheet image.');
-  };
-  voice.onerror = () => {
-    console.error('Failed to load voice audio.');
-  };
-  bgMusic.onerror = () => {
-    console.error('Failed to load background music audio.');
-  };
-
-  function drawSprite(x, y, frameIndex, action) {
+  function drawStaticImage() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    const frameWidth = SPRITE_SIZE;
-    const frameHeight = SPRITE_SIZE;
-    let spriteRow = 0;
-
- 
-
-    let frameToDraw = 0;
- 
-
-    ctx.drawImage(
-      spriteSheet,
-      frameToDraw * frameWidth,
-      spriteRow * frameHeight,
-      frameWidth,
-      frameHeight,
-      x,
-      y,
-      SPRITE_SIZE,
-      SPRITE_SIZE
-    );
-  }
-
-  function animateSprite() {
-    if (animState === 'walking') {
-      drawSprite(posX, 100, frame, 'walking');
-      posX += 2;
-      if (posX >= canvas.width / 2 - SPRITE_SIZE / 2) {
-        animState = 'opening';
-        setTimeout(() => {
-          animState = 'done';
-        }, 1000);
-      }
-    } else {
-      drawSprite(posX, 100, frame, animState);
-    }
-    frame = (frame + 1) % 3; // cycle walking frames
-    requestAnimationFrame(animateSprite);
+    ctx.drawImage(spriteImage, (canvas.width - spriteImage.width) / 2, (canvas.height - spriteImage.height) / 2);
   }
 
   function fadeIn(element, duration = 1000) {
@@ -167,22 +117,19 @@ canvas {
 
   startBtn.addEventListener("click", () => {
     startBtn.style.display = 'none';
-    console.log("Start clicked, loading sprite...");
-    spriteSheet.onload = () => {
-      console.log("Sprite loaded.");
+    spriteImage.onload = () => {
+      drawStaticImage();
       voice.play()
         .then(() => {
-          console.log("Voice playing.");
           showSentence();
-          animateSprite();
         })
         .catch(err => {
           console.error("Audio play prevented:", err);
           startBtn.style.display = 'inline-block';
         });
     };
-    if (spriteSheet.complete) {
-      spriteSheet.onload();
+    if (spriteImage.complete) {
+      spriteImage.onload();
     }
   });
 </script>

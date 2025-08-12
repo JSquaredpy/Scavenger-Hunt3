@@ -3,192 +3,461 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Scavenger Hunt Intro</title>
+<title>Scavenger Hunt with NPC Dialogue</title>
 <style>
-  body {
-    background-color: #1a1a1a;
-    color: #00ffcc;
+  :root {
+    --accent: #00ffcc;
+    --accent-2: #00cc88;
+    --bg: #1a1a1a;
+  }
+  html, body {
+    margin: 0; height: 100%;
+    background: var(--bg);
+    color: var(--accent);
     font-family: monospace;
     display: flex;
     flex-direction: column;
-    justify-content: center;
     align-items: center;
-    height: 100vh;
-    padding: 20px;
-    margin: 0;
+    justify-content: center;
   }
-  #narration {
-    max-width: 800px;
-    white-space: pre-wrap;
-    font-size: 1.2rem;
-    line-height: 1.5;
-    margin-top: 20px;
+  #gameContainer {
+    position: relative;
+    width: 540px;
+    height: 270px;
+  }
+  canvas#gameCanvas {
+    border: 2px solid var(--accent);
+    background-size: cover;
+    background-position: center;
+    display: block;
+  }
+  #fadeOverlay {
+    position: absolute;
+    inset: 0;
+    background: black;
     opacity: 0;
-    transition: opacity 1s ease;
-    text-align: center;
+    pointer-events: none;
+    transition: opacity 300ms ease;
+    z-index: 50;
   }
   #startBtn {
-    padding: 10px 20px;
+    margin-top: 12px;
+    padding: 10px 18px;
+    border-radius: 6px;
+    border: none;
+    background: var(--accent-2);
+    color: black;
     font-size: 1rem;
     cursor: pointer;
-    border: none;
-    border-radius: 5px;
-    background-color: #00cc88;
-    color: black;
   }
-canvas {
-    background: url('Images/background.jpg') no-repeat center center;
-    background-size: cover; /* or 'contain' for full visibility */
-}
-
+  #dialogueBox {
+    width: 80%;
+    max-width: 820px;
+    height: 140px;
+    background: rgba(0,0,0,0.85);
+    border: 2px solid var(--accent);
+    padding: 10px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-sizing: border-box;
+    position: relative;
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 220ms ease, visibility 220ms linear;
+    z-index: 60;
+    margin-top: 10px;
+  }
+  #dialogueBox.show { visibility: visible; opacity: 1; }
+  #portrait {
+    width: 96px;
+    height: 96px;
+    border: 2px solid var(--accent);
+    background-size: cover;
+    background-position: center;
+    flex-shrink: 0;
+  }
+  #dialogueText {
+    flex: 1;
+    font-size: 1.05rem;
+    white-space: pre-wrap;
+    overflow-y: auto;
+    max-height: 120px;
+  }
+  #arrowControls {
+    margin-top: 12px;
+    display: flex;
+    gap: 24px;
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 200ms ease, visibility 200ms linear;
+  }
+  #arrowControls.show { visibility: visible; opacity: 1; }
+  .arrowBtn {
+    width: 70px;
+    height: 70px;
+    border-radius: 10px;
+    border: none;
+    font-size: 2rem;
+    background: var(--accent-2);
+    color: black;
+    cursor: pointer;
+    box-shadow: 0 0 8px var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+    touch-action: manipulation;
+  }
+  .arrowBtn:active { transform: translateY(1px); filter: brightness(0.95); }
+  #interactBtn {
+    margin-top: 10px;
+    padding: 10px 22px;
+    font-size: 1.1rem;
+    background: var(--accent-2);
+    border: none;
+    border-radius: 8px;
+    color: black;
+    cursor: pointer;
+    opacity: 0;
+    display: none;
+    transition: opacity 0.4s ease;
+  }
+  .italic {
+    font-style: italic;
+  }
 </style>
 </head>
 <body>
 
-<button id="startBtn">Start Adventure</button>
-<canvas id="gameCanvas" width="320" height="160"></canvas>
-<div id="narration"></div>
+<div id="gameContainer">
+  <canvas id="gameCanvas" width="540" height="270"></canvas>
+  <div id="fadeOverlay"></div>
+</div>
+
+<button id="startBtn" disabled>Loading assets…</button>
+
+<div id="dialogueBox">
+  <div id="portrait" style="background-image: url('images/captain-sprite.png');"></div>
+  <div id="dialogueText"></div>
+</div>
+
+<div id="arrowControls">
+  <button id="leftBtn" class="arrowBtn" aria-label="Move Left">←</button>
+  <button id="rightBtn" class="arrowBtn" aria-label="Move Right">→</button>
+</div>
+
+<button id="interactBtn">Interact</button>
 
 <script>
-  const scriptText = `Welcome to the adventure, time traveller. You will journey through 21st-century London as it existed over 4000 years ago. To avoid detection, you must dress, act, and behave like someone of this time. I've implanted your mission brief into your neuronic chip — plus a translator to convert native ÆEalt into primitive English. Your mission: follow the footsteps of your target Joel Jack on Thursday the 14th of August 2025 and assume the identity of his girlfriend, Jadine Downes. Use the clues around London to find and locate him. Be advised, he is quite dangerous and has incredible charm and wit. Use all you can to resist his irresistible good looks and capture him safely for the mission. He holds the key to the fate of the universe. Good luck and safe travels.`;
+const STAGE_BACKGROUNDS = [
+  'images/background.jpg',
+  'images/background1.jpg',
+  'images/background2.jpg',
+  'images/background3.jpeg'
+];
 
-  const sentences = scriptText.split('. ').map(s => s.trim()).filter(Boolean).map(s => s.endsWith('.') ? s : s + '.');
+const SPRITES = {
+  right: 'images/girl-sprite-right.png',
+  left:  'images/girl-sprite-left.png',
+  captainPortrait: 'images/captain-sprite.png',
+  npc: 'images/space-sprite.png',
+  npc2: 'images/terminal.png'
+};
 
-  const narrationElement = document.getElementById("narration");
-  const startBtn = document.getElementById("startBtn");
-  const canvas = document.getElementById("gameCanvas");
-  const ctx = canvas.getContext("2d");
+const AUDIO = {
+  voice: 'audio/voice.mp3',
+  bgm: 'audio/bgmusic.mp3',
+  npcVoice: 'audio/npc-voice.mp3',
+  npc2Voice: 'audio/npc2-voice.mp3'
+};
 
-  const voice = new Audio("audio/voice.mp3");
-const bgmusic = new Audio("audio/bgmusic.mp3");
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const fadeOverlay = document.getElementById('fadeOverlay');
+const startBtn = document.getElementById('startBtn');
+const dialogueBox = document.getElementById('dialogueBox');
+const dialogueText = document.getElementById('dialogueText');
+const portrait = document.getElementById('portrait');
+const arrowControls = document.getElementById('arrowControls');
+const leftBtn = document.getElementById('leftBtn');
+const rightBtn = document.getElementById('rightBtn');
+const interactBtn = document.getElementById('interactBtn');
 
-bgmusic.loop = true;
-bgmusic.volume = 0.4;
+const SPRITE_SIZE = 96;
+let posX = canvas.width/2 - SPRITE_SIZE/2;
+let posY = canvas.height/2 - SPRITE_SIZE/2 + 89;
+let swayOffset = 0, swayDirection = 1;
+let animState = 'idle', lastDirection = 'right';
+let keys = { left:false, right:false };
+let currentStage = 0, isTransitioning = false;
 
-  bgmusic.loop = true;
-  bgmusic.volume = 0.4;
+const npc = { x: canvas.width - 150, y: posY, width: SPRITE_SIZE, height: SPRITE_SIZE, isTalking: false, swayOffset: 0, swayDirection: 1 };
+const npc2 = { x: 235, y: posY, width: SPRITE_SIZE, height: SPRITE_SIZE, isTalking: false, swayOffset: 0, swayDirection: 1 };
 
-  // Sprite settings
-  const SPRITE_SIZE = 64;
-  let posX = -SPRITE_SIZE;
-  let frame = 0;
-  let animState = 'walking';
+const npcScriptText = [
+  { text: "Heh, you wanna know where to head next, huh?", duration: 2500 },
+  { text: "Listen up. It’s all about the place where they first locked eyes—where the whole mess started.", duration: 2500 },
+  { text: "Ain’t some random spot. Nah, it’s a circle, see? Like a wheel, like somethin’ that keeps on turnin’.", duration: 2500 },
+  { text: "You can't miss it. Walls curve ‘round like they don’t wanna let you go, like they’re holdin’ onto secrets.", duration: 2500 },
+  { text: "That’s where you’ll find what you’re lookin’ for.", duration: 2500 },
+  { text: "Step light, pay attention. The ground’s got stories if you know how to hear ‘em.", duration: 2500 },
+  { text: "Now get movin’. Time ain’t waitin’ for slowpokes.", duration: 2500 }
+];
 
-  const spriteSheet = new Image();
-  spriteSheet.src = 'Images/ girl-sprite.png'; // Update to your sprite path
+const npc2ScriptText = [
+  { text: "<span class='italic'>TERMINAL SAYS<br>Find the next location to continue the adventure<br> p.s It's not on here ;)</span>", duration: 5000 }
+];
 
-  spriteSheet.onerror = () => {
-    console.error('Failed to load sprite sheet image.');
-  };
-  voice.onerror = () => {
-    console.error('Failed to load voice audio.');
-  };
-  bgMusic.onerror = () => {
-    console.error('Failed to load background music audio.');
-  };
+const imagesToLoad = [...STAGE_BACKGROUNDS, SPRITES.right, SPRITES.left, SPRITES.captainPortrait, SPRITES.npc, SPRITES.npc2];
+const preloaded = {};
+let loadedCount = 0;
 
-  function drawSprite(x, y, frameIndex, action) {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+imagesToLoad.forEach(src => {
+  const img = new Image();
+  img.onload = () => { loadedCount++; preloaded[src] = img; if(loadedCount === imagesToLoad.length) onAllAssetsLoaded(); };
+  img.onerror = () => { loadedCount++; if(loadedCount === imagesToLoad.length) onAllAssetsLoaded(); };
+  img.src = src;
+});
 
-    const frameWidth = SPRITE_SIZE;
-    const frameHeight = SPRITE_SIZE;
-    let spriteRow = 0;
+const voiceAudio = new Audio(AUDIO.voice);
+const bgMusic = new Audio(AUDIO.bgm); bgMusic.loop = true; bgMusic.volume = 0.36;
+const npcAudio = new Audio(AUDIO.npcVoice);
+const npc2Audio = new Audio(AUDIO.npc2Voice);
 
- 
+function onAllAssetsLoaded(){
+  canvas.style.backgroundImage = `url('${STAGE_BACKGROUNDS[currentStage]}')`;
+  startBtn.disabled = false;
+  startBtn.textContent = 'Start Adventure';
+}
 
-    let frameToDraw = 0;
- 
+function drawSprite(x, y){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
 
-    ctx.drawImage(
-      spriteSheet,
-      frameToDraw * frameWidth,
-      spriteRow * frameHeight,
-      frameWidth,
-      frameHeight,
-      x,
-      y,
-      SPRITE_SIZE,
-      SPRITE_SIZE
-    );
-  }
-
-  function animateSprite() {
-    if (animState === 'walking') {
-      drawSprite(posX, 100, frame, 'walking');
-      posX += 2;
-      if (posX >= canvas.width / 2 - SPRITE_SIZE / 2) {
-        animState = 'opening';
-        setTimeout(() => {
-          animState = 'done';
-        }, 1000);
-      }
-    } else {
-      drawSprite(posX, 100, frame, animState);
+  if(currentStage === 2){
+    const npcImg = preloaded[SPRITES.npc];
+    if(npcImg) {
+      npc.swayOffset += npc.swayDirection * 0.3;
+      if(npc.swayOffset > 3 || npc.swayOffset < -3) npc.swayDirection *= -1;
+      ctx.drawImage(npcImg, npc.x + npc.swayOffset, npc.y, npc.width, npc.height);
     }
-    frame = (frame + 1) % 3; // cycle walking frames
-    requestAnimationFrame(animateSprite);
   }
 
-  function fadeIn(element, duration = 1000) {
-    element.style.transition = `opacity ${duration}ms ease`;
-    element.style.opacity = 1;
-  }
-  function fadeOut(element, duration = 1000) {
-    element.style.transition = `opacity ${duration}ms ease`;
-    element.style.opacity = 0;
+  if(currentStage === 3){
+    const npc2Img = preloaded[SPRITES.npc2];
+    if(npc2Img) {
+      ctx.drawImage(npc2Img, npc2.x + npc2.swayOffset, npc2.y, npc2.width, npc2.height);
+    }
   }
 
-  let currentSentence = 0;
-  function showSentence() {
-    if (currentSentence >= sentences.length) {
-      fadeOut(narrationElement, 1000);
-      fadeInBgMusic();
+  const playerImg = lastDirection === 'left' ? preloaded[SPRITES.left] : preloaded[SPRITES.right];
+  if(playerImg) ctx.drawImage(playerImg, x + swayOffset, y, SPRITE_SIZE, SPRITE_SIZE);
+}
+
+function changeStage(direction){
+  if(isTransitioning) return;
+  isTransitioning = true;
+  fadeOverlay.style.opacity = '1';
+  setTimeout(() => {
+    currentStage = (currentStage + direction + STAGE_BACKGROUNDS.length) % STAGE_BACKGROUNDS.length;
+    canvas.style.backgroundImage = `url('${STAGE_BACKGROUNDS[currentStage]}')`;
+    if(direction === 1){ posX = 8; lastDirection = 'right'; }
+    else { posX = canvas.width - SPRITE_SIZE - 8; lastDirection = 'left'; }
+    fadeOverlay.style.opacity = '0';
+    setTimeout(() => { isTransitioning = false; }, 320);
+  }, 320);
+}
+
+function animateSprite(){
+  if(keys.left){ posX -= 4; animState = 'walking'; lastDirection = 'left'; }
+  else if(keys.right){ posX += 4; animState = 'walking'; lastDirection = 'right'; }
+  else animState = 'idle';
+
+  posX = Math.max(0, Math.min(posX, canvas.width - SPRITE_SIZE));
+
+  if(!isTransitioning && posX <= 0 && lastDirection === 'left') changeStage(-1);
+  else if(!isTransitioning && posX >= canvas.width - SPRITE_SIZE && lastDirection === 'right') changeStage(1);
+
+  // NPC1 interaction
+  if(currentStage === 2){
+    const distX = Math.abs((posX + SPRITE_SIZE/2) - (npc.x + npc.width/2));
+    const distY = Math.abs((posY + SPRITE_SIZE/2) - (npc.y + npc.height/2));
+    if(distX < 80 && distY < 80 && !npc.isTalking && !introPlaying && !npcDialoguePlaying && !npc2DialoguePlaying) {
+      showInteractButton(() => { startNpcDialogue(); });
+    } else {
+      hideInteractButton();
+    }
+  }
+
+  // NPC2 interaction
+  if(currentStage === 3){
+    const distX2 = Math.abs((posX + SPRITE_SIZE/2) - (npc2.x + npc2.width/2));
+    const distY2 = Math.abs((posY + SPRITE_SIZE/2) - (npc2.y + npc2.height/2));
+    if(distX2 < 80 && distY2 < 80 && !npc2.isTalking && !introPlaying && !npc2DialoguePlaying && !npcDialoguePlaying) {
+      showInteractButton(() => { startNpc2Dialogue(); });
+    } else {
+      hideInteractButton();
+    }
+  }
+
+  if(animState === 'idle'){ swayOffset += swayDirection * 0.5; if(swayOffset > 3 || swayOffset < -3) swayDirection *= -1; }
+  else swayOffset = 0;
+
+  drawSprite(posX, posY);
+  requestAnimationFrame(animateSprite);
+}
+
+function typeSentence(sentence, callback) {
+  dialogueText.textContent = '';
+  let index = 0;
+  function typeNext() {
+    if (index < sentence.length) {
+      dialogueText.textContent += sentence.charAt(index++);
+      setTimeout(typeNext, 40);
+    } else { if (callback) callback(); }
+  }
+  typeNext();
+}
+
+function showDialogueNoHide(text, callback){
+  dialogueBox.classList.add('show');
+  typeSentence(text, callback);
+}
+
+function hideDialogue(){ dialogueBox.classList.remove('show'); }
+
+// NPC1 dialogue sequence
+let npcDialogueIndex = 0, npcDialoguePlaying = false;
+function startNpcDialogue(){
+  npc.isTalking = true;
+  hideInteractButton();
+  npcAudio.currentTime = 0;
+  npcAudio.play();
+  playNpcDialogueSequence();
+}
+function playNpcDialogueSequence() {
+  npcDialoguePlaying = true;
+  npcDialogueIndex = 0;
+  portrait.style.backgroundImage = `url('${SPRITES.npc}')`;
+  dialogueBox.classList.add('show');
+  function nextLine() {
+    if (npcDialogueIndex >= npcScriptText.length) {
+      setTimeout(() => {
+        dialogueBox.classList.remove('show');
+        portrait.style.backgroundImage = `url('${SPRITES.captainPortrait}')`;
+        npcDialoguePlaying = false;
+        npc.isTalking = false;
+      }, 1000);
       return;
     }
-    narrationElement.textContent = sentences[currentSentence];
-    fadeIn(narrationElement, 1000);
-    setTimeout(() => {
-      fadeOut(narrationElement, 1000);
+    const line = npcScriptText[npcDialogueIndex];
+    typeSentence(line.text, () => {
+      npcDialogueIndex++;
+      setTimeout(nextLine, line.duration || 3000);
+    });
+  }
+  nextLine();
+}
+
+// NPC2 dialogue sequence
+let npc2DialogueIndex = 0, npc2DialoguePlaying = false;
+function startNpc2Dialogue(){
+  npc2.isTalking = true;
+  hideInteractButton();
+  npc2Audio.currentTime = 0;
+  npc2Audio.play();
+  playNpc2DialogueSequence();
+}
+function playNpc2DialogueSequence() {
+  npc2DialoguePlaying = true;
+  npc2DialogueIndex = 0;
+  portrait.style.backgroundImage = `url('${SPRITES.npc2}')`;
+  dialogueBox.classList.add('show');
+
+  function nextLine() {
+    if (npc2DialogueIndex >= npc2ScriptText.length) {
       setTimeout(() => {
-        currentSentence++;
-        showSentence();
+        dialogueBox.classList.remove('show');
+        portrait.style.backgroundImage = `url('${SPRITES.captainPortrait}')`;
+        npc2DialoguePlaying = false;
+        npc2.isTalking = false;
       }, 1000);
-    }, 4000);
-  }
-
-  function fadeInBgMusic() {
-    bgMusic.play();
-    let vol = 0;
-    const interval = setInterval(() => {
-      if (vol < 0.5) {
-        vol += 0.01;
-        bgMusic.volume = vol;
-      } else {
-        clearInterval(interval);
-      }
-    }, 100);
-  }
-
-  startBtn.addEventListener("click", () => {
-    startBtn.style.display = 'none';
-    console.log("Start clicked, loading sprite...");
-    spriteSheet.onload = () => {
-      console.log("Sprite loaded.");
-      voice.play()
-        .then(() => {
-          console.log("Voice playing.");
-          showSentence();
-          animateSprite();
-        })
-        .catch(err => {
-          console.error("Audio play prevented:", err);
-          startBtn.style.display = 'inline-block';
-        });
-    };
-    if (spriteSheet.complete) {
-      spriteSheet.onload();
+      return;
     }
+
+    // Allow HTML for italics
+    const line = npc2ScriptText[npc2DialogueIndex];
+    dialogueText.innerHTML = line.text;
+
+    npc2DialogueIndex++;
+    setTimeout(nextLine, line.duration || 3000);
+  }
+
+  nextLine();
+}
+
+function showInteractButton(callback) {
+  interactBtn.onclick = callback;
+  interactBtn.style.display = 'inline-block';
+  void interactBtn.offsetWidth;
+  interactBtn.style.opacity = '1';
+}
+function hideInteractButton() {
+  interactBtn.style.opacity = '0';
+  interactBtn.addEventListener('transitionend', () => {
+    if(interactBtn.style.opacity === '0') interactBtn.style.display = 'none';
+  }, { once: true });
+}
+
+leftBtn.addEventListener('pointerdown', () => keys.left = true);
+leftBtn.addEventListener('pointerup', () => keys.left = false);
+leftBtn.addEventListener('pointerleave', () => keys.left = false);
+rightBtn.addEventListener('pointerdown', () => keys.right = true);
+rightBtn.addEventListener('pointerup', () => keys.right = false);
+rightBtn.addEventListener('pointerleave', () => keys.right = false);
+window.addEventListener('keydown', e => { if(e.key === 'ArrowLeft') keys.left = true; if(e.key === 'ArrowRight') keys.right = true; });
+window.addEventListener('keyup', e => { if(e.key === 'ArrowLeft') keys.left = false; if(e.key === 'ArrowRight') keys.right = false; });
+
+const scriptText = [
+  { text: "Welcome to the adventure, time traveller.", duration: 1000 },
+  { text: "You will journey through 21st-century London as it existed over 4000 years ago.", duration: 4000 },
+  { text: "To avoid detection, you must dress, act, and behave like someone of this time.", duration: 4500 },
+  { text: "I've implanted your mission brief into your neuronic chip — plus a translator to convert native ÆEalt into primitive English.", duration: 5500 },
+  { text: "Your mission: follow the footsteps of your target Joel Jack on Thursday the 14th of August 2025 and assume the identity of his girlfriend, Jadine Downes.", duration: 5400 },
+  { text: "Use the clues around London to find and locate him.", duration: 2800 },
+  { text: "Be advised, he is quite dangerous and has incredible charm and wit.", duration: 3000 },
+  { text: "Use all you can to resist his irresistible good looks and capture him safely for the mission.", duration: 3000 },
+  { text: "He holds the key to the fate of the universe. Good luck and safe travels.", duration: 2000 }
+];
+let currentIndex = 0;
+let introPlaying = true;
+
+function showScriptSequenceNoFlicker() {
+  if (currentIndex >= scriptText.length) {
+    setTimeout(() => { hideDialogue(); introPlaying = false; }, 1000);
+    return;
+  }
+  const line = scriptText[currentIndex];
+  showDialogueNoHide(line.text, () => {
+    currentIndex++;
+    setTimeout(showScriptSequenceNoFlicker, line.duration || 3000);
   });
+}
+
+startBtn.addEventListener('click', () => {
+  startBtn.style.display = 'none';
+  arrowControls.classList.add('show');
+  bgMusic.play();
+  voiceAudio.currentTime = 0;
+  voiceAudio.play().catch(err => console.warn('Voice play blocked:', err));
+  currentIndex = 0;
+  introPlaying = true;
+  portrait.style.backgroundImage = `url('${SPRITES.captainPortrait}')`;
+  showScriptSequenceNoFlicker();
+  animateSprite();
+});
+
+canvas.addEventListener('contextmenu', e => e.preventDefault());
 </script>
 
 </body>

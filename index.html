@@ -221,7 +221,7 @@ imagesToLoad.forEach(src => {
 });
 
 const voiceAudio = new Audio(AUDIO.voice);
-const bgMusic = new Audio(AUDIO.bgm); bgMusic.loop = true; bgMusic.volume = 0.36;
+const bgmusic = new Audio(AUDIO.bgm); bgmusic.loop = true; bgmusic.volume = 0.36;
 const npcAudio = new Audio(AUDIO.npcVoice);
 const npc2Audio = new Audio(AUDIO.npc2Voice);
 
@@ -447,7 +447,7 @@ function showScriptSequenceNoFlicker() {
 startBtn.addEventListener('click', () => {
   startBtn.style.display = 'none';
   arrowControls.classList.add('show');
-  bgMusic.play();
+  bgmusic.play();
   voiceAudio.currentTime = 0;
   voiceAudio.play().catch(err => console.warn('Voice play blocked:', err));
   currentIndex = 0;

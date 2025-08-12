@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Scavenger Hunt Intro</title>
+<style>
+  body {
+    background-color: #1a1a1a;
+    color: #00ffcc;
+    font-family: monospace;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    padding: 20px;
+  }
+  #narration {
+    max-width: 800px;
+    white-space: pre-wrap;
+    font-size: 1.2rem;
+    line-height: 1.5;
+    margin-top: 20px;
+  }
+  #startBtn {
+    padding: 10px 20px;
+    font-size: 1rem;
+    cursor: pointer;
+    border: none;
+    border-radius: 5px;
+    background-color: #00cc88;
+    color: black;
+  }
+</style>
+</head>
+<body>
+
+<button id="startBtn">Start Adventure</button>
+<div id="narration"></div>
+
+<script>
+  const scriptText = `Welcome to the adventure, time traveller. You will journey through 21st-century London as it existed over 4000 years ago. To avoid detection, you must dress, act, and behave like someone of this time. I've implanted your mission brief into your neuronic chip — plus a translator to convert native ÆEalt into primitive English. Your mission: follow the footsteps of your target Joel Jack on Thursday the 14th of August 2025 and assume the identity of his girlfriend, Jadine Downes. Use the clues around London to find and locate him. Be advised, he is quite dangerous and has incredible charm and wit. Use all you can to resist his irresistible good looks and capture him safely for the mission. He holds the key to the fate of the universe. Good luck and safe travels.`;
+
+  const narrationElement = document.getElementById("narration");
+  const startBtn = document.getElementById("startBtn");
+
+  const voice = new Audio("audio/voice.mp3");
+  const bgMusic = new Audio("audio/bgmusic.mp3");
+  bgMusic.loop = true;
+  bgMusic.volume = 0.5;
+
+  const totalDuration = 63; // seconds
+  const typingSpeed = (totalDuration / scriptText.length) * 1000; // ms per character
+
+  function typeText(text, speed, callback) {
+    let index = 0;
+    function type() {
+      if (index < text.length) {
+        narrationElement.textContent += text.charAt(index);
+        index++;
+        setTimeout(type, speed);
+      } else if (callback) {
+        callback();
+      }
+    }
+    type();
+  }
+
+  startBtn.addEventListener("click", () => {
+    startBtn.style.display = "none";
+    voice.play().then(() => {
+      typeText(scriptText, typingSpeed, () => {
+        bgMusic.play();
+      });
+    }).catch(err => {
+      console.error("Audio play prevented:", err);
+    });
+  });
+</script>
+
+</body>
+</html>

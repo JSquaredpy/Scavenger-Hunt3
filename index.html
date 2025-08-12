@@ -58,9 +58,13 @@ canvas {
   const startBtn = document.getElementById("startBtn");
   const canvas = document.getElementById("gameCanvas");
   const ctx = canvas.getContext("2d");
-git add .
-git commit -m "Update latest changes"
-git push
+
+  const voice = new Audio("audio/voice.mp3");
+const bgMusic = new Audio("audio/bgmusic.mp3");
+
+bgMusic.loop = true;
+bgMusic.volume = 0.4;
+
   bgMusic.loop = true;
   bgMusic.volume = 0.4;
 

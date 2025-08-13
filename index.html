@@ -162,14 +162,17 @@ const SPRITES = {
   left:  'images/girl-sprite-left.png',
   captainPortrait: 'images/captain-sprite.png',
   npc: 'images/space-sprite.png',
-  npc2: 'images/terminal.png'
+  npc2: 'images/terminal.png',
+  npc3: 'images/homeless-sprite.png' // new NPC sprite
+
 };
 
 const AUDIO = {
   voice: 'audio/voice.mp3',
   bgm: 'audio/bgmusic.mp3',
   npcVoice: 'audio/npc-voice.mp3',
-  npc2Voice: 'audio/npc2-voice.mp3'
+  npc2Voice: 'audio/npc-voice2.mp3',
+  npc3Voice: 'audio/npc-voice3.mp3'
 };
 
 const canvas = document.getElementById('gameCanvas');
@@ -194,6 +197,16 @@ let currentStage = 0, isTransitioning = false;
 
 const npc = { x: canvas.width - 150, y: posY, width: SPRITE_SIZE, height: SPRITE_SIZE, isTalking: false, swayOffset: 0, swayDirection: 1 };
 const npc2 = { x: 235, y: posY, width: SPRITE_SIZE, height: SPRITE_SIZE, isTalking: false, swayOffset: 0, swayDirection: 1 };
+const npc3 = {
+  x: 100, // choose an x position
+  y: posY, // same vertical level as the player
+  width: SPRITE_SIZE,
+  height: SPRITE_SIZE,
+  isTalking: false,
+  swayOffset: 0,
+  swayDirection: 1
+};
+
 
 const npcScriptText = [
   { text: "Heh, you wanna know where to head next, huh?", duration: 2500 },
@@ -209,7 +222,13 @@ const npc2ScriptText = [
   { text: "<span class='italic'>TERMINAL SAYS<br>Find the next location to continue the adventure<br> p.s It's not on here ;)</span>", duration: 5000 }
 ];
 
-const imagesToLoad = [...STAGE_BACKGROUNDS, SPRITES.right, SPRITES.left, SPRITES.captainPortrait, SPRITES.npc, SPRITES.npc2];
+const npc3ScriptText = [
+  { text: "Can you spare some flaxian? Even a scrap will do.", duration: 2500 },
+  { text: "...", duration: 1000 },
+  { text: "Right, didn't think so broke ass nig-", duration: 2500 }
+];
+
+const imagesToLoad = [...STAGE_BACKGROUNDS, SPRITES.right, SPRITES.left, SPRITES.captainPortrait, SPRITES.npc, SPRITES.npc2,SPRITES.npc3 ];
 const preloaded = {};
 let loadedCount = 0;
 
@@ -224,6 +243,8 @@ const voiceAudio = new Audio(AUDIO.voice);
 const bgmusic = new Audio(AUDIO.bgm); bgmusic.loop = true; bgmusic.volume = 0.36;
 const npcAudio = new Audio(AUDIO.npcVoice);
 const npc2Audio = new Audio(AUDIO.npc2Voice);
+const npc3Audio = new Audio(AUDIO.npc3Voice);
+
 
 function onAllAssetsLoaded(){
   canvas.style.backgroundImage = `url('${STAGE_BACKGROUNDS[currentStage]}')`;
@@ -249,6 +270,16 @@ function drawSprite(x, y){
       ctx.drawImage(npc2Img, npc2.x + npc2.swayOffset, npc2.y, npc2.width, npc2.height);
     }
   }
+
+  if(currentStage === 0){
+  const npc3Img = preloaded[SPRITES.npc3];
+  if(npc3Img){
+    npc3.swayOffset += npc3.swayDirection * 0.3;
+    if(npc3.swayOffset > 3 || npc3.swayOffset < -3) npc3.swayDirection *= -1;
+    ctx.drawImage(npc3Img, npc3.x + npc3.swayOffset, npc3.y, npc3.width, npc3.height);
+  }
+}
+
 
   const playerImg = lastDirection === 'left' ? preloaded[SPRITES.left] : preloaded[SPRITES.right];
   if(playerImg) ctx.drawImage(playerImg, x + swayOffset, y, SPRITE_SIZE, SPRITE_SIZE);
@@ -299,6 +330,18 @@ function animateSprite(){
       hideInteractButton();
     }
   }
+
+  // NPC3 interaction
+if(currentStage === 0){
+  const distX3 = Math.abs((posX + SPRITE_SIZE/2) - (npc3.x + npc3.width/2));
+  const distY3 = Math.abs((posY + SPRITE_SIZE/2) - (npc3.y + npc3.height/2));
+  if(distX3 < 80 && distY3 < 80 && !npc3.isTalking && !introPlaying && !npcDialoguePlaying && !npc2DialoguePlaying) {
+    showInteractButton(() => { startNpc3Dialogue(); });
+  } else {
+    hideInteractButton();
+  }
+}
+
 
   if(animState === 'idle'){ swayOffset += swayDirection * 0.5; if(swayOffset > 3 || swayOffset < -3) swayDirection *= -1; }
   else swayOffset = 0;
@@ -395,6 +438,42 @@ function playNpc2DialogueSequence() {
 
   nextLine();
 }
+
+function startNpc3Dialogue(){
+  npc3.isTalking = true;
+  hideInteractButton();
+  npc3Audio.currentTime = 0;
+  npc3Audio.play().catch(err => console.warn('NPC3 audio blocked:', err));
+  playNpc3DialogueSequence();
+}
+
+function playNpc3DialogueSequence() {
+  npc3DialoguePlaying = true;
+  npc3DialogueIndex = 0;
+  portrait.style.backgroundImage = `url('${SPRITES.npc3}')`;
+  dialogueBox.classList.add('show');
+
+  function nextLine() {
+    if(npc3DialogueIndex >= npc3ScriptText.length){
+      setTimeout(() => {
+        dialogueBox.classList.remove('show');
+        portrait.style.backgroundImage = `url('${SPRITES.captainPortrait}')`;
+        npc3DialoguePlaying = false;
+        npc3.isTalking = false;
+      }, 1000);
+      return;
+    }
+
+    const line = npc3ScriptText[npc3DialogueIndex];
+    typeSentence(line.text, () => {
+      npc3DialogueIndex++;
+      setTimeout(nextLine, line.duration || 3000);
+    });
+  }
+
+  nextLine();
+}
+
 
 function showInteractButton(callback) {
   interactBtn.onclick = callback;

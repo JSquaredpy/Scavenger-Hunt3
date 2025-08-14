@@ -149,34 +149,54 @@
 
 <button id="interactBtn">Interact</button>
 
+<div id="terminalChoice" style="
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.95);
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  color: var(--accent);
+  font-family: monospace;
+">
+  <h2>What will you do?</h2>
+  <button id="endMissionBtn" style="margin:10px; padding:10px 20px;">End Mission and Wipe Memories</button>
+  <button id="continueBtn" style="margin:10px; padding:10px 20px;">Continue Adventure and Capture Joel</button>
+</div>
+
+
 <script>
 const STAGE_BACKGROUNDS = [
-  'images/background.jpg',
-  'images/background1.jpg',
+  'images/background.png',
+  'images/background1.gif',
   'images/background2.jpg',
-  'images/background3.jpeg'
+  'images/background3.jpg'
 ];
 
 const SPRITES = {
   right: 'images/girl-sprite-right.png',
-  left:  'images/girl-sprite-left.png',
+  left: 'images/girl-sprite-left.png',
   captainPortrait: 'images/captain-sprite.png',
-  npc: 'images/space-sprite.png',
-  npc2: 'images/terminal.png',
-  npc3: 'images/homeless-sprite.png' // new NPC sprite
-
+  npc: 'images/npc1-sprite.png',   // NPC1
+  npc2: 'images/terminal.png',     // NPC2
+  npc3: 'images/homeless-sprite.png' // NPC3
 };
 
 const AUDIO = {
   voice: 'audio/voice.mp3',
   bgm: 'audio/bgmusic.mp3',
-  npcVoice: 'audio/npc-voice.mp3',
-  npc2Voice: 'audio/npc-voice2.mp3',
-  npc3Voice: 'audio/npc-voice3.mp3'
+  npcVoice: 'audio/npc1-voice.mp3',
+  npc2Voice: 'audio/npc2-voice.mp3',
+  npc3Voice: 'audio/npc3-voice.mp3'
 };
 
+// Canvas setup
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
+
+// DOM elements
 const fadeOverlay = document.getElementById('fadeOverlay');
 const startBtn = document.getElementById('startBtn');
 const dialogueBox = document.getElementById('dialogueBox');
@@ -186,7 +206,11 @@ const arrowControls = document.getElementById('arrowControls');
 const leftBtn = document.getElementById('leftBtn');
 const rightBtn = document.getElementById('rightBtn');
 const interactBtn = document.getElementById('interactBtn');
+const terminalChoice = document.getElementById('terminalChoice');
+const endMissionBtn = document.getElementById('endMissionBtn');
+const continueBtn = document.getElementById('continueBtn');
 
+// Player variables
 const SPRITE_SIZE = 96;
 let posX = canvas.width/2 - SPRITE_SIZE/2;
 let posY = canvas.height/2 - SPRITE_SIZE/2 + 89;
@@ -194,41 +218,58 @@ let swayOffset = 0, swayDirection = 1;
 let animState = 'idle', lastDirection = 'right';
 let keys = { left:false, right:false };
 let currentStage = 0, isTransitioning = false;
+let introPlaying = true;
 
+// NPCs
 const npc = { x: canvas.width - 150, y: posY, width: SPRITE_SIZE, height: SPRITE_SIZE, isTalking: false, swayOffset: 0, swayDirection: 1 };
 const npc2 = { x: 235, y: posY, width: SPRITE_SIZE, height: SPRITE_SIZE, isTalking: false, swayOffset: 0, swayDirection: 1 };
-const npc3 = {
-  x: 100, // choose an x position
-  y: posY, // same vertical level as the player
-  width: SPRITE_SIZE,
-  height: SPRITE_SIZE,
-  isTalking: false,
-  swayOffset: 0,
-  swayDirection: 1
-};
+const npc3 = { x: 100, y: posY, width: SPRITE_SIZE, height: SPRITE_SIZE, isTalking: false, swayOffset: 0, swayDirection: 1 };
 
+// Dialogue data
+const scriptText = [
+  { text: "WHAT THE FUCK, TRAVELLER!", duration: 1000 },
+  { text: "IS NOW REALLY THE TIME TO BE EATING ICE CREAM?!", duration: 1000 },
+  { text: "YOU ARE HEREBY EXCOMMUNICATED!", duration: 1300 },
+  { text: "GOOD LUCK GETTING BACK HOME!", duration: 1000 },
+];
 
 const npcScriptText = [
-  { text: "Heh, you wanna know where to head next, huh?", duration: 2500 },
-  { text: "Listen up. It’s all about the place where they first locked eyes—where the whole mess started.", duration: 2500 },
-  { text: "Ain’t some random spot. Nah, it’s a circle, see? Like a wheel, like somethin’ that keeps on turnin’.", duration: 2500 },
-  { text: "You can't miss it. Walls curve ‘round like they don’t wanna let you go, like they’re holdin’ onto secrets.", duration: 2500 },
-  { text: "That’s where you’ll find what you’re lookin’ for.", duration: 2500 },
-  { text: "Step light, pay attention. The ground’s got stories if you know how to hear ‘em.", duration: 2500 },
-  { text: "Now get movin’. Time ain’t waitin’ for slowpokes.", duration: 2500 }
+  { text: "Hello traveler!", duration: 2000 },
+  { text: "Im a ghost,", duration: 2000 }
 ];
 
 const npc2ScriptText = [
-  { text: "<span class='italic'>TERMINAL SAYS<br>Find the next location to continue the adventure<br> p.s It's not on here ;)</span>", duration: 5000 }
+  { text: "<span class='italic'>TERMINAL SAYS<br> Joel is waiting now waiting for you at the a special place.<br> Choose to wipe your memories and stay with him, or capture him for the mission? </span>", duration: 5000 }
 ];
 
 const npc3ScriptText = [
-  { text: "Can you spare some flaxian? Even a scrap will do.", duration: 2500 },
-  { text: "...", duration: 1000 },
-  { text: "Right, didn't think so broke ass nig-", duration: 2500 }
+  { text: "Seems you flew too close to the sun.", duration: 2500 },
+  { text: "You didn't prioritise the mission and now, here you are.", duration: 1000 },
+  { text: "Here's the truth.", duration: 2500 },
+  { text: "I was once a time travel agent just like you. Then I came on a mission to this time, it was just like any other.", duration: 4500 },
+  { text: "But this time, I fell in love.", duration: 2500 },
+  { text: "I dropped the mission and then -", duration: 2500 },
+  { text: "She's gone now, but as punishment they make me babysit time travellers like you.", duration: 2500 },
+  { text: "You know... You could just forget all this and never go back, if you wanted.", duration: 2500 },
+  { text: "Find the terminal and do what it says.", duration: 2500 },
+  { text: "This time can be shitty, and there's no glofsx gorb...", duration: 2500 },
+  { text: "But it's not so bad.", duration: 2500 },
 ];
 
-const imagesToLoad = [...STAGE_BACKGROUNDS, SPRITES.right, SPRITES.left, SPRITES.captainPortrait, SPRITES.npc, SPRITES.npc2,SPRITES.npc3 ];
+// Dialogue flags
+let npcDialogueIndex = 0, npcDialoguePlaying = false;
+let npc2DialogueIndex = 0, npc2DialoguePlaying = false;
+let npc3DialogueIndex = 0, npc3DialoguePlaying = false;
+
+// Audio
+const voiceAudio = new Audio(AUDIO.voice);
+const bgmusic = new Audio(AUDIO.bgm); bgmusic.loop = true; bgmusic.volume = 0.36;
+const npcAudio = new Audio(AUDIO.npcVoice);
+const npc2Audio = new Audio(AUDIO.npc2Voice);
+const npc3Audio = new Audio(AUDIO.npc3Voice);
+
+// Preload images
+const imagesToLoad = [...STAGE_BACKGROUNDS, ...Object.values(SPRITES)];
 const preloaded = {};
 let loadedCount = 0;
 
@@ -239,117 +280,13 @@ imagesToLoad.forEach(src => {
   img.src = src;
 });
 
-const voiceAudio = new Audio(AUDIO.voice);
-const bgmusic = new Audio(AUDIO.bgm); bgmusic.loop = true; bgmusic.volume = 0.36;
-const npcAudio = new Audio(AUDIO.npcVoice);
-const npc2Audio = new Audio(AUDIO.npc2Voice);
-const npc3Audio = new Audio(AUDIO.npc3Voice);
-
-
 function onAllAssetsLoaded(){
   canvas.style.backgroundImage = `url('${STAGE_BACKGROUNDS[currentStage]}')`;
   startBtn.disabled = false;
   startBtn.textContent = 'Start Adventure';
 }
 
-function drawSprite(x, y){
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-
-  if(currentStage === 2){
-    const npcImg = preloaded[SPRITES.npc];
-    if(npcImg) {
-      npc.swayOffset += npc.swayDirection * 0.3;
-      if(npc.swayOffset > 3 || npc.swayOffset < -3) npc.swayDirection *= -1;
-      ctx.drawImage(npcImg, npc.x + npc.swayOffset, npc.y, npc.width, npc.height);
-    }
-  }
-
-  if(currentStage === 3){
-    const npc2Img = preloaded[SPRITES.npc2];
-    if(npc2Img) {
-      ctx.drawImage(npc2Img, npc2.x + npc2.swayOffset, npc2.y, npc2.width, npc2.height);
-    }
-  }
-
-  if(currentStage === 0){
-  const npc3Img = preloaded[SPRITES.npc3];
-  if(npc3Img){
-    npc3.swayOffset += npc3.swayDirection * 0.3;
-    if(npc3.swayOffset > 3 || npc3.swayOffset < -3) npc3.swayDirection *= -1;
-    ctx.drawImage(npc3Img, npc3.x + npc3.swayOffset, npc3.y, npc3.width, npc3.height);
-  }
-}
-
-
-  const playerImg = lastDirection === 'left' ? preloaded[SPRITES.left] : preloaded[SPRITES.right];
-  if(playerImg) ctx.drawImage(playerImg, x + swayOffset, y, SPRITE_SIZE, SPRITE_SIZE);
-}
-
-function changeStage(direction){
-  if(isTransitioning) return;
-  isTransitioning = true;
-  fadeOverlay.style.opacity = '1';
-  setTimeout(() => {
-    currentStage = (currentStage + direction + STAGE_BACKGROUNDS.length) % STAGE_BACKGROUNDS.length;
-    canvas.style.backgroundImage = `url('${STAGE_BACKGROUNDS[currentStage]}')`;
-    if(direction === 1){ posX = 8; lastDirection = 'right'; }
-    else { posX = canvas.width - SPRITE_SIZE - 8; lastDirection = 'left'; }
-    fadeOverlay.style.opacity = '0';
-    setTimeout(() => { isTransitioning = false; }, 320);
-  }, 320);
-}
-
-function animateSprite(){
-  if(keys.left){ posX -= 4; animState = 'walking'; lastDirection = 'left'; }
-  else if(keys.right){ posX += 4; animState = 'walking'; lastDirection = 'right'; }
-  else animState = 'idle';
-
-  posX = Math.max(0, Math.min(posX, canvas.width - SPRITE_SIZE));
-
-  if(!isTransitioning && posX <= 0 && lastDirection === 'left') changeStage(-1);
-  else if(!isTransitioning && posX >= canvas.width - SPRITE_SIZE && lastDirection === 'right') changeStage(1);
-
-  // NPC1 interaction
-  if(currentStage === 2){
-    const distX = Math.abs((posX + SPRITE_SIZE/2) - (npc.x + npc.width/2));
-    const distY = Math.abs((posY + SPRITE_SIZE/2) - (npc.y + npc.height/2));
-    if(distX < 80 && distY < 80 && !npc.isTalking && !introPlaying && !npcDialoguePlaying && !npc2DialoguePlaying) {
-      showInteractButton(() => { startNpcDialogue(); });
-    } else {
-      hideInteractButton();
-    }
-  }
-
-  // NPC2 interaction
-  if(currentStage === 3){
-    const distX2 = Math.abs((posX + SPRITE_SIZE/2) - (npc2.x + npc2.width/2));
-    const distY2 = Math.abs((posY + SPRITE_SIZE/2) - (npc2.y + npc2.height/2));
-    if(distX2 < 80 && distY2 < 80 && !npc2.isTalking && !introPlaying && !npc2DialoguePlaying && !npcDialoguePlaying) {
-      showInteractButton(() => { startNpc2Dialogue(); });
-    } else {
-      hideInteractButton();
-    }
-  }
-
-  // NPC3 interaction
-if(currentStage === 0){
-  const distX3 = Math.abs((posX + SPRITE_SIZE/2) - (npc3.x + npc3.width/2));
-  const distY3 = Math.abs((posY + SPRITE_SIZE/2) - (npc3.y + npc3.height/2));
-  if(distX3 < 80 && distY3 < 80 && !npc3.isTalking && !introPlaying && !npcDialoguePlaying && !npc2DialoguePlaying) {
-    showInteractButton(() => { startNpc3Dialogue(); });
-  } else {
-    hideInteractButton();
-  }
-}
-
-
-  if(animState === 'idle'){ swayOffset += swayDirection * 0.5; if(swayOffset > 3 || swayOffset < -3) swayDirection *= -1; }
-  else swayOffset = 0;
-
-  drawSprite(posX, posY);
-  requestAnimationFrame(animateSprite);
-}
-
+// Typewriter function
 function typeSentence(sentence, callback) {
   dialogueText.textContent = '';
   let index = 0;
@@ -357,124 +294,19 @@ function typeSentence(sentence, callback) {
     if (index < sentence.length) {
       dialogueText.textContent += sentence.charAt(index++);
       setTimeout(typeNext, 40);
-    } else { if (callback) callback(); }
+    } else if (callback) callback();
   }
   typeNext();
 }
 
+// Show/hide dialogue
 function showDialogueNoHide(text, callback){
   dialogueBox.classList.add('show');
   typeSentence(text, callback);
 }
-
 function hideDialogue(){ dialogueBox.classList.remove('show'); }
 
-// NPC1 dialogue sequence
-let npcDialogueIndex = 0, npcDialoguePlaying = false;
-function startNpcDialogue(){
-  npc.isTalking = true;
-  hideInteractButton();
-  npcAudio.currentTime = 0;
-  npcAudio.play();
-  playNpcDialogueSequence();
-}
-function playNpcDialogueSequence() {
-  npcDialoguePlaying = true;
-  npcDialogueIndex = 0;
-  portrait.style.backgroundImage = `url('${SPRITES.npc}')`;
-  dialogueBox.classList.add('show');
-  function nextLine() {
-    if (npcDialogueIndex >= npcScriptText.length) {
-      setTimeout(() => {
-        dialogueBox.classList.remove('show');
-        portrait.style.backgroundImage = `url('${SPRITES.captainPortrait}')`;
-        npcDialoguePlaying = false;
-        npc.isTalking = false;
-      }, 1000);
-      return;
-    }
-    const line = npcScriptText[npcDialogueIndex];
-    typeSentence(line.text, () => {
-      npcDialogueIndex++;
-      setTimeout(nextLine, line.duration || 3000);
-    });
-  }
-  nextLine();
-}
-
-// NPC2 dialogue sequence
-let npc2DialogueIndex = 0, npc2DialoguePlaying = false;
-function startNpc2Dialogue(){
-  npc2.isTalking = true;
-  hideInteractButton();
-  npc2Audio.currentTime = 0;
-  npc2Audio.play();
-  playNpc2DialogueSequence();
-}
-function playNpc2DialogueSequence() {
-  npc2DialoguePlaying = true;
-  npc2DialogueIndex = 0;
-  portrait.style.backgroundImage = `url('${SPRITES.npc2}')`;
-  dialogueBox.classList.add('show');
-
-  function nextLine() {
-    if (npc2DialogueIndex >= npc2ScriptText.length) {
-      setTimeout(() => {
-        dialogueBox.classList.remove('show');
-        portrait.style.backgroundImage = `url('${SPRITES.captainPortrait}')`;
-        npc2DialoguePlaying = false;
-        npc2.isTalking = false;
-      }, 1000);
-      return;
-    }
-
-    // Allow HTML for italics
-    const line = npc2ScriptText[npc2DialogueIndex];
-    dialogueText.innerHTML = line.text;
-
-    npc2DialogueIndex++;
-    setTimeout(nextLine, line.duration || 3000);
-  }
-
-  nextLine();
-}
-
-function startNpc3Dialogue(){
-  npc3.isTalking = true;
-  hideInteractButton();
-  npc3Audio.currentTime = 0;
-  npc3Audio.play().catch(err => console.warn('NPC3 audio blocked:', err));
-  playNpc3DialogueSequence();
-}
-
-function playNpc3DialogueSequence() {
-  npc3DialoguePlaying = true;
-  npc3DialogueIndex = 0;
-  portrait.style.backgroundImage = `url('${SPRITES.npc3}')`;
-  dialogueBox.classList.add('show');
-
-  function nextLine() {
-    if(npc3DialogueIndex >= npc3ScriptText.length){
-      setTimeout(() => {
-        dialogueBox.classList.remove('show');
-        portrait.style.backgroundImage = `url('${SPRITES.captainPortrait}')`;
-        npc3DialoguePlaying = false;
-        npc3.isTalking = false;
-      }, 1000);
-      return;
-    }
-
-    const line = npc3ScriptText[npc3DialogueIndex];
-    typeSentence(line.text, () => {
-      npc3DialogueIndex++;
-      setTimeout(nextLine, line.duration || 3000);
-    });
-  }
-
-  nextLine();
-}
-
-
+// Interact button
 function showInteractButton(callback) {
   interactBtn.onclick = callback;
   interactBtn.style.display = 'inline-block';
@@ -488,56 +320,227 @@ function hideInteractButton() {
   }, { once: true });
 }
 
-leftBtn.addEventListener('pointerdown', () => keys.left = true);
-leftBtn.addEventListener('pointerup', () => keys.left = false);
-leftBtn.addEventListener('pointerleave', () => keys.left = false);
-rightBtn.addEventListener('pointerdown', () => keys.right = true);
-rightBtn.addEventListener('pointerup', () => keys.right = false);
-rightBtn.addEventListener('pointerleave', () => keys.right = false);
-window.addEventListener('keydown', e => { if(e.key === 'ArrowLeft') keys.left = true; if(e.key === 'ArrowRight') keys.right = true; });
-window.addEventListener('keyup', e => { if(e.key === 'ArrowLeft') keys.left = false; if(e.key === 'ArrowRight') keys.right = false; });
+// Terminal buttons
+endMissionBtn.addEventListener('click', () => {
+  // Clear everything
+  document.body.innerHTML = '';
+  document.body.style.background = 'black';
+  document.body.style.overflow = 'hidden';
 
-const scriptText = [
-  { text: "Welcome to the adventure, time traveller.", duration: 1000 },
-  { text: "You will journey through 21st-century London as it existed over 4000 years ago.", duration: 4000 },
-  { text: "To avoid detection, you must dress, act, and behave like someone of this time.", duration: 4500 },
-  { text: "I've implanted your mission brief into your neuronic chip — plus a translator to convert native ÆEalt into primitive English.", duration: 5500 },
-  { text: "Your mission: follow the footsteps of your target Joel Jack on Thursday the 14th of August 2025 and assume the identity of his girlfriend, Jadine Downes.", duration: 5400 },
-  { text: "Use the clues around London to find and locate him.", duration: 2800 },
-  { text: "Be advised, he is quite dangerous and has incredible charm and wit.", duration: 3000 },
-  { text: "Use all you can to resist his irresistible good looks and capture him safely for the mission.", duration: 3000 },
-  { text: "He holds the key to the fate of the universe. Good luck and safe travels.", duration: 2000 }
-];
-let currentIndex = 0;
-let introPlaying = true;
+  // Create container for effect
+  const container = document.createElement('div');
+  container.style.position = 'fixed';
+  container.style.inset = '0';
+  container.style.display = 'flex';
+  container.style.flexDirection = 'column';
+  container.style.alignItems = 'center';
+  container.style.justifyContent = 'center';
+  container.style.color = '#00ffcc';
+  container.style.fontFamily = 'monospace';
+  container.style.fontSize = '2rem';
+  container.style.textAlign = 'center';
+  container.style.letterSpacing = '0.15em';
+  container.style.opacity = '0';
+  document.body.appendChild(container);
 
-function showScriptSequenceNoFlicker() {
-  if (currentIndex >= scriptText.length) {
-    setTimeout(() => { hideDialogue(); introPlaying = false; }, 1000);
-    return;
-  }
-  const line = scriptText[currentIndex];
-  showDialogueNoHide(line.text, () => {
-    currentIndex++;
-    setTimeout(showScriptSequenceNoFlicker, line.duration || 3000);
-  });
+  // Add title
+  const title = document.createElement('div');
+  title.textContent = 'MEMORIES WIPED';
+  title.style.fontSize = '4rem';
+  title.style.fontWeight = 'bold';
+  title.style.marginBottom = '20px';
+  container.appendChild(title);
+
+  // Add subtitle
+  const subtitle = document.createElement('div');
+  subtitle.textContent = 'MISSION COMPLETE';
+  subtitle.style.fontSize = '2rem';
+  subtitle.style.opacity = '0.7';
+  container.appendChild(subtitle);
+
+  // Create glitch-like scanline effect
+  const scanline = document.createElement('div');
+  scanline.style.position = 'fixed';
+  scanline.style.top = '0';
+  scanline.style.left = '0';
+  scanline.style.width = '100%';
+  scanline.style.height = '2px';
+  scanline.style.background = 'linear-gradient(to right, transparent, #00ffcc, transparent)';
+  scanline.style.animation = 'scanlineMove 1s linear infinite';
+  document.body.appendChild(scanline);
+
+  // Fade-in animation
+  setTimeout(() => { container.style.transition = 'opacity 2s ease-in'; container.style.opacity = '1'; }, 50);
+
+  // Optional: flickering effect
+  setInterval(() => {
+    container.style.opacity = Math.random() > 0.9 ? '0.8' : '1';
+  }, 150);
+
+  // CSS animation for scanline
+  const style = document.createElement('style');
+  style.innerHTML = `
+    @keyframes scanlineMove {
+      0% { transform: translateY(0); }
+      100% { transform: translateY(100vh); }
+    }
+  `;
+  document.head.appendChild(style);
+});
+
+continueBtn.addEventListener('click', () => {
+  terminalChoice.style.display = 'none';
+});
+
+// Stage change
+function changeStage(direction){
+  if(isTransitioning) return;
+  isTransitioning = true;
+  fadeOverlay.style.opacity = '1';
+  setTimeout(() => {
+    currentStage = (currentStage + direction + STAGE_BACKGROUNDS.length) % STAGE_BACKGROUNDS.length;
+    canvas.style.backgroundImage = `url('${STAGE_BACKGROUNDS[currentStage]}')`;
+    posX = direction === 1 ? 8 : canvas.width - SPRITE_SIZE - 8;
+    lastDirection = direction === 1 ? 'right' : 'left';
+    fadeOverlay.style.opacity = '0';
+    setTimeout(() => { isTransitioning = false; }, 320);
+  }, 320);
 }
 
-startBtn.addEventListener('click', () => {
-  startBtn.style.display = 'none';
+// Draw player + NPCs
+function drawSprite(x, y){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+
+  if(currentStage === 2 && preloaded[SPRITES.npc]){
+    npc.swayOffset += npc.swayDirection * 0.3;
+    if(npc.swayOffset > 3 || npc.swayOffset < -3) npc.swayDirection *= -1;
+    ctx.drawImage(preloaded[SPRITES.npc], npc.x + npc.swayOffset, npc.y, npc.width, npc.height);
+  }
+
+  if(currentStage === 3 && preloaded[SPRITES.npc2]){
+    ctx.drawImage(preloaded[SPRITES.npc2], npc2.x + npc2.swayOffset, npc2.y, npc2.width, npc2.height);
+  }
+
+  if(currentStage === 0 && preloaded[SPRITES.npc3]){
+    npc3.swayOffset += npc3.swayDirection * 0.3;
+    if(npc3.swayOffset > 3 || npc3.swayOffset < -3) npc3.swayDirection *= -1;
+    ctx.drawImage(preloaded[SPRITES.npc3], npc3.x + npc3.swayOffset, npc3.y, npc3.width, npc3.height);
+  }
+
+  const playerImg = lastDirection === 'left' ? preloaded[SPRITES.left] : preloaded[SPRITES.right];
+  if(playerImg) ctx.drawImage(playerImg, x + swayOffset, y, SPRITE_SIZE, SPRITE_SIZE);
+}
+
+// Animate player and NPCs
+function animateSprite(){
+  if(keys.left){ posX -= 4; animState='walking'; lastDirection='left'; }
+  else if(keys.right){ posX += 4; animState='walking'; lastDirection='right'; }
+  else animState='idle';
+
+  posX = Math.max(0, Math.min(posX, canvas.width - SPRITE_SIZE));
+
+  if(!isTransitioning && posX <= 0 && lastDirection==='left') changeStage(-1);
+  else if(!isTransitioning && posX >= canvas.width - SPRITE_SIZE && lastDirection==='right') changeStage(1);
+
+  // Interactions
+  function checkNPCInteraction(npcObj, dialogueFn){
+    const distX = Math.abs((posX + SPRITE_SIZE/2) - (npcObj.x + npcObj.width/2));
+    const distY = Math.abs((posY + SPRITE_SIZE/2) - (npcObj.y + npcObj.height/2));
+    if(distX < 80 && distY < 80 && !npcObj.isTalking && !introPlaying && !npcDialoguePlaying && !npc2DialoguePlaying && !npc3DialoguePlaying){
+      showInteractButton(dialogueFn);
+    } else {
+      hideInteractButton();
+    }
+  }
+
+  if(currentStage===2) checkNPCInteraction(npc, startNpcDialogue);
+  if(currentStage===3) checkNPCInteraction(npc2, startNpc2Dialogue);
+  if(currentStage===0) checkNPCInteraction(npc3, startNpc3Dialogue);
+
+  if(animState==='idle'){ swayOffset+=swayDirection*0.5; if(swayOffset>3||swayOffset<-3)swayDirection*=-1; }
+  else swayOffset=0;
+
+  drawSprite(posX,posY);
+  requestAnimationFrame(animateSprite);
+}
+
+// NPC dialogue sequences
+function startNpcDialogue(){
+  npc.isTalking=true; hideInteractButton(); npcAudio.currentTime=0; npcAudio.play();
+  npcDialoguePlaying=true; npcDialogueIndex=0; portrait.style.backgroundImage=`url('${SPRITES.npc}')`; dialogueBox.classList.add('show');
+  function nextLine(){
+    if(npcDialogueIndex>=npcScriptText.length){
+      setTimeout(()=>{ dialogueBox.classList.remove('show'); portrait.style.backgroundImage=`url('${SPRITES.captainPortrait}')`; npcDialoguePlaying=false; npc.isTalking=false; },1000);
+      return;
+    }
+    const line=npcScriptText[npcDialogueIndex++];
+    typeSentence(line.text, ()=>setTimeout(nextLine,line.duration||3000));
+  }
+  nextLine();
+}
+
+function startNpc2Dialogue(){
+  npc2.isTalking=true; hideInteractButton(); npc2Audio.currentTime=0; npc2Audio.play();
+  npc2DialoguePlaying=true; npc2DialogueIndex=0; portrait.style.backgroundImage=`url('${SPRITES.npc2}')`; dialogueBox.classList.add('show');
+  function nextLine(){
+    if(npc2DialogueIndex>=npc2ScriptText.length){
+      setTimeout(()=>{ dialogueBox.classList.remove('show'); portrait.style.backgroundImage=`url('${SPRITES.captainPortrait}')`; npc2DialoguePlaying=false; npc2.isTalking=false; terminalChoice.style.display='flex'; },1000);
+      return;
+    }
+    const line=npc2ScriptText[npc2DialogueIndex++];
+    dialogueText.innerHTML=line.text;
+    setTimeout(nextLine,line.duration||3000);
+  }
+  nextLine();
+}
+
+function startNpc3Dialogue(){
+  npc3.isTalking=true; hideInteractButton(); npc3Audio.currentTime=0; npc3Audio.play().catch(e=>console.warn('NPC3 audio blocked',e));
+  npc3DialoguePlaying=true; npc3DialogueIndex=0; portrait.style.backgroundImage=`url('${SPRITES.npc3}')`; dialogueBox.classList.add('show');
+  function nextLine(){
+    if(npc3DialogueIndex>=npc3ScriptText.length){
+      setTimeout(()=>{ dialogueBox.classList.remove('show'); portrait.style.backgroundImage=`url('${SPRITES.captainPortrait}')`; npc3DialoguePlaying=false; npc3.isTalking=false; },1000);
+      return;
+    }
+    const line=npc3ScriptText[npc3DialogueIndex++];
+    typeSentence(line.text, ()=>setTimeout(nextLine,line.duration||3000));
+  }
+  nextLine();
+}
+
+// Intro sequence
+let currentIndex=0;
+function showScriptSequenceNoFlicker(){
+  if(currentIndex>=scriptText.length){ setTimeout(()=>{ hideDialogue(); introPlaying=false; },1000); return; }
+  const line=scriptText[currentIndex++];
+  showDialogueNoHide(line.text, ()=>setTimeout(showScriptSequenceNoFlicker,line.duration||3000));
+}
+
+// Controls
+leftBtn.addEventListener('pointerdown',()=>keys.left=true);
+leftBtn.addEventListener('pointerup',()=>keys.left=false);
+leftBtn.addEventListener('pointerleave',()=>keys.left=false);
+rightBtn.addEventListener('pointerdown',()=>keys.right=true);
+rightBtn.addEventListener('pointerup',()=>keys.right=false);
+rightBtn.addEventListener('pointerleave',()=>keys.right=false);
+window.addEventListener('keydown',e=>{ if(e.key==='ArrowLeft') keys.left=true; if(e.key==='ArrowRight') keys.right=true; });
+window.addEventListener('keyup',e=>{ if(e.key==='ArrowLeft') keys.left=false; if(e.key==='ArrowRight') keys.right=false; });
+
+startBtn.addEventListener('click',()=>{
+  startBtn.style.display='none';
   arrowControls.classList.add('show');
   bgmusic.play();
-  voiceAudio.currentTime = 0;
-  voiceAudio.play().catch(err => console.warn('Voice play blocked:', err));
-  currentIndex = 0;
-  introPlaying = true;
-  portrait.style.backgroundImage = `url('${SPRITES.captainPortrait}')`;
+  voiceAudio.currentTime=0;
+  voiceAudio.play().catch(err=>console.warn('Voice play blocked',err));
+  currentIndex=0; introPlaying=true;
+  portrait.style.backgroundImage=`url('${SPRITES.captainPortrait}')`;
   showScriptSequenceNoFlicker();
   animateSprite();
 });
 
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 </script>
+
 
 </body>
 </html>

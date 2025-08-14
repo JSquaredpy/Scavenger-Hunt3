@@ -161,13 +161,16 @@
   color: var(--accent);
   font-family: monospace;
 ">
-  <h2>What will you do?</h2>
+  <h2>Choose Wisely?</h2>
   <button id="endMissionBtn" style="margin:10px; padding:10px 20px;">End Mission and Wipe Memories</button>
   <button id="continueBtn" style="margin:10px; padding:10px 20px;">Continue Adventure and Capture Joel</button>
 </div>
 
 
 <script>
+
+  let homelessDialogueCompleted = false;
+
 const STAGE_BACKGROUNDS = [
   'images/background.png',
   'images/background1.gif',
@@ -235,7 +238,7 @@ const scriptText = [
 
 const npcScriptText = [
   { text: "Hello traveler!", duration: 2000 },
-  { text: "Im a ghost,", duration: 2000 }
+  { text: "Im a ghost, BOO!", duration: 2000 }
 ];
 
 const npc2ScriptText = [
@@ -327,7 +330,7 @@ endMissionBtn.addEventListener('click', () => {
   document.body.style.background = 'black';
   document.body.style.overflow = 'hidden';
 
-  // Create container for effect
+  // Memories wiped screen
   const container = document.createElement('div');
   container.style.position = 'fixed';
   container.style.inset = '0';
@@ -343,7 +346,6 @@ endMissionBtn.addEventListener('click', () => {
   container.style.opacity = '0';
   document.body.appendChild(container);
 
-  // Add title
   const title = document.createElement('div');
   title.textContent = 'MEMORIES WIPED';
   title.style.fontSize = '4rem';
@@ -351,46 +353,127 @@ endMissionBtn.addEventListener('click', () => {
   title.style.marginBottom = '20px';
   container.appendChild(title);
 
-  // Add subtitle
   const subtitle = document.createElement('div');
   subtitle.textContent = 'MISSION COMPLETE';
   subtitle.style.fontSize = '2rem';
   subtitle.style.opacity = '0.7';
   container.appendChild(subtitle);
 
-  // Create glitch-like scanline effect
-  const scanline = document.createElement('div');
-  scanline.style.position = 'fixed';
-  scanline.style.top = '0';
-  scanline.style.left = '0';
-  scanline.style.width = '100%';
-  scanline.style.height = '2px';
-  scanline.style.background = 'linear-gradient(to right, transparent, #00ffcc, transparent)';
-  scanline.style.animation = 'scanlineMove 1s linear infinite';
-  document.body.appendChild(scanline);
-
-  // Fade-in animation
   setTimeout(() => { container.style.transition = 'opacity 2s ease-in'; container.style.opacity = '1'; }, 50);
 
-  // Optional: flickering effect
-  setInterval(() => {
-    container.style.opacity = Math.random() > 0.9 ? '0.8' : '1';
-  }, 150);
+  // After 3.5s, start rolling credits with audio
+  setTimeout(() => startRollingCredits(), 3500);
 
-  // CSS animation for scanline
-  const style = document.createElement('style');
-  style.innerHTML = `
-    @keyframes scanlineMove {
-      0% { transform: translateY(0); }
-      100% { transform: translateY(100vh); }
+  function startRollingCredits() {
+    document.body.innerHTML = '';
+
+    // Create audio element
+    const creditAudio = new Audio('audio/end.mp3'); // <-- your audio file path
+    creditAudio.loop = false;
+    creditAudio.volume = 0.5;
+    creditAudio.play().catch(err => console.warn('Audio play blocked:', err));
+
+    // Create credits container
+    const creditsContainer = document.createElement('div');
+    creditsContainer.style.position = 'fixed';
+    creditsContainer.style.bottom = '-100%';
+    creditsContainer.style.width = '100%';
+    creditsContainer.style.display = 'flex';
+    creditsContainer.style.flexDirection = 'column';
+    creditsContainer.style.alignItems = 'center';
+    creditsContainer.style.color = '#00ffcc';
+    creditsContainer.style.fontFamily = 'monospace';
+    creditsContainer.style.fontSize = '1.8rem';
+    creditsContainer.style.textAlign = 'center';
+    creditsContainer.style.whiteSpace = 'pre-line';
+    document.body.appendChild(creditsContainer);
+
+    const credits = [
+      "Game Design: Joel Jack",
+      "Programming: Joel Jack",
+      "Artwork: Joel Jack",
+      "Music & Sound: Joel Jack",
+      "I love you Jadine, Hope you enjoyed this!",
+      "Thanks for playing!"
+    ];
+
+    credits.forEach(line => {
+      const div = document.createElement('div');
+      div.textContent = line;
+      div.style.margin = '12px 0';
+      creditsContainer.appendChild(div);
+    });
+
+    // Animate rolling
+    let pos = window.innerHeight;
+    function roll() {
+      pos -= 0.5; // speed
+      creditsContainer.style.bottom = pos + 'px';
+      if(pos + creditsContainer.scrollHeight > 0) requestAnimationFrame(roll);
     }
-  `;
-  document.head.appendChild(style);
+    roll();
+  }
 });
+
+
 
 continueBtn.addEventListener('click', () => {
   terminalChoice.style.display = 'none';
+  document.body.innerHTML = '<h1 style="color:#00ffcc; text-align:center; margin-top:20%;">Adventure continues… but this time, only in memories.</h1>';
+    // After 3.5s, start rolling credits with audio
+  setTimeout(() => startRollingCredits(), 3500);
+
+  function startRollingCredits() {
+    document.body.innerHTML = '';
+
+    // Create audio element
+    const creditAudio = new Audio('audio/end.mp3'); // <-- your audio file path
+    creditAudio.loop = false;
+    creditAudio.volume = 0.5;
+    creditAudio.play().catch(err => console.warn('Audio play blocked:', err));
+
+    // Create credits container
+    const creditsContainer = document.createElement('div');
+    creditsContainer.style.position = 'fixed';
+    creditsContainer.style.bottom = '-100%';
+    creditsContainer.style.width = '100%';
+    creditsContainer.style.display = 'flex';
+    creditsContainer.style.flexDirection = 'column';
+    creditsContainer.style.alignItems = 'center';
+    creditsContainer.style.color = '#00ffcc';
+    creditsContainer.style.fontFamily = 'monospace';
+    creditsContainer.style.fontSize = '1.8rem';
+    creditsContainer.style.textAlign = 'center';
+    creditsContainer.style.whiteSpace = 'pre-line';
+    document.body.appendChild(creditsContainer);
+
+    const credits = [
+      "Game Design: Joel Jack",
+      "Programming: Joel Jack",
+      "Artwork: Joel Jack",
+      "Music & Sound: Joel Jack",
+      "I love you Jadine, Hope you enjoyed this!",
+      "Thanks for playing!"
+    ];
+
+    credits.forEach(line => {
+      const div = document.createElement('div');
+      div.textContent = line;
+      div.style.margin = '12px 0';
+      creditsContainer.appendChild(div);
+    });
+
+    // Animate rolling
+    let pos = window.innerHeight;
+    function roll() {
+      pos -= 0.5; // speed
+      creditsContainer.style.bottom = pos + 'px';
+      if(pos + creditsContainer.scrollHeight > 0) requestAnimationFrame(roll);
+    }
+    roll();
+  }
 });
+
 
 // Stage change
 function changeStage(direction){
@@ -454,7 +537,8 @@ function animateSprite(){
   }
 
   if(currentStage===2) checkNPCInteraction(npc, startNpcDialogue);
-  if(currentStage===3) checkNPCInteraction(npc2, startNpc2Dialogue);
+if(currentStage===3 && homelessDialogueCompleted) checkNPCInteraction(npc2, startNpc2Dialogue);
+
   if(currentStage===0) checkNPCInteraction(npc3, startNpc3Dialogue);
 
   if(animState==='idle'){ swayOffset+=swayDirection*0.5; if(swayOffset>3||swayOffset<-3)swayDirection*=-1; }
@@ -495,11 +579,24 @@ function startNpc2Dialogue(){
 }
 
 function startNpc3Dialogue(){
-  npc3.isTalking=true; hideInteractButton(); npc3Audio.currentTime=0; npc3Audio.play().catch(e=>console.warn('NPC3 audio blocked',e));
-  npc3DialoguePlaying=true; npc3DialogueIndex=0; portrait.style.backgroundImage=`url('${SPRITES.npc3}')`; dialogueBox.classList.add('show');
+  npc3.isTalking=true; 
+  hideInteractButton(); 
+  npc3Audio.currentTime=0; 
+  npc3Audio.play().catch(e=>console.warn('NPC3 audio blocked',e));
+  npc3DialoguePlaying=true; 
+  npc3DialogueIndex=0; 
+  portrait.style.backgroundImage=`url('${SPRITES.npc3}')`; 
+  dialogueBox.classList.add('show');
+
   function nextLine(){
     if(npc3DialogueIndex>=npc3ScriptText.length){
-      setTimeout(()=>{ dialogueBox.classList.remove('show'); portrait.style.backgroundImage=`url('${SPRITES.captainPortrait}')`; npc3DialoguePlaying=false; npc3.isTalking=false; },1000);
+      setTimeout(()=>{
+        dialogueBox.classList.remove('show'); 
+        portrait.style.backgroundImage=`url('${SPRITES.captainPortrait}')`; 
+        npc3DialoguePlaying=false; 
+        npc3.isTalking=false; 
+        homelessDialogueCompleted = true; // ✅ flag set here
+      },1000);
       return;
     }
     const line=npc3ScriptText[npc3DialogueIndex++];
@@ -507,6 +604,7 @@ function startNpc3Dialogue(){
   }
   nextLine();
 }
+
 
 // Intro sequence
 let currentIndex=0;
